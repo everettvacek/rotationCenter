@@ -1,0 +1,1 @@
+Test to see if np.real(fft_odd) reaches a minimum when the detector is aligned.
