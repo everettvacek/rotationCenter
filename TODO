@@ -1,1 +1,9 @@
+Active:
+Test on sinogram where object is larger than detector frame.
+Test on real data.
+
+Future:
+Use on sinogram with poorly alined slices.
+
+Completed:
 Test to see if np.real(fft_odd) reaches a minimum when the detector is aligned.
