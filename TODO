@@ -3,6 +3,8 @@ Test on sinogram where object is larger than detector frame.
 Test on real data.
 Try to align individual slices of sinogram.
 See if noise in higher components of the FFT correlates to maximum reconstruciton resolution.
+Find noise limit for combined images.
+
 
 Future:
 Use on sinogram with poorly alined slices.
