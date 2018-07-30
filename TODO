@@ -1,13 +1,18 @@
-Active:
-Test on sinogram where object is larger than detector frame.
-Test on real data.
-Try to align individual slices of sinogram.
-See if noise in higher components of the FFT correlates to maximum reconstruciton resolution.
-Find noise limit for combined images.
+# Active
+
+## Input Manipulation:
+* Test on sinogram where object is larger than detector frame.
+* Test on real data.
 
 
-Future:
-Use on sinogram with poorly alined slices.
+## Noise:
+* Find noise limit for combined images.
+* See if noise in higher components of the FFT correlates to maximum reconstruciton resolution.
 
-Completed:
-Test to see if np.real(fft_odd) reaches a minimum when the detector is aligned.
+# Future:
+* See if large deviations in "even real fourier component(s)" correspond to deviations in "odd imag fourier component(s)"
+* Try to align individual slices of sinogram.
+
+
+# Completed:
+* Test to see if np.real(fft_odd) reaches a minimum when the detector is aligned.
