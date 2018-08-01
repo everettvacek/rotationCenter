@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import optimize
 
 def snr_calc(array, noise, exposure=None):
     if exposure == None:
@@ -30,3 +31,28 @@ def DC_and_SYM(array):
     SYM = array_fft[1]
     return DC, SYM
 
+# https://scipy-cookbook.readthedocs.io/items/FittingData.html#Simplifying-the-syntax
+
+
+
+def fit(function, parameters, y, x = None):
+    class Parameter:
+        def __init__(self, value):
+                self.value = value
+
+        def set(self, value):
+                self.value = value
+
+        def __call__(self):
+                return self.value
+    
+    def f(params):
+        i = 0
+        for p in parameters:
+            Parameter(p).set(params[i])
+            i += 1
+        return y - function(x)
+
+    if x is None: x = np.arange(y.shape[0])
+    p = [Parameter(param)() for param in parameters]
+    return optimize.leastsq(f, p)
