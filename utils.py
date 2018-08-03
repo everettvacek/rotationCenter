@@ -1,5 +1,12 @@
 import numpy as np
-from scipy import optimize
+from matplotlib import pyplot as plt
+import scipy
+from scipy.signal import argrelextrema
+from scipy.optimize import root, leastsq
+
+import sys
+
+import h5py
 
 def snr_calc(array, noise, exposure=None):
     if exposure == None:
@@ -31,6 +38,73 @@ def DC_and_SYM(array):
     SYM = array_fft[1]
     return DC, SYM
 
+def shift(array, scan_area):
+    DC_even = []
+    SYM_even= []
+    DC_odd = []
+    SYM_odd = []
+    DC_all = []
+    SYM_all = []
+    shifting_range = array.shape[0]-scan_area
+    
+    for i in range(shifting_range):
+        window = array[i:i+scan_area,:]
+        rowsum = np.sum(window, axis = 1, dtype=np.float64)
+        DC, SYM = DC_and_SYM(rowsum)
+        DC_all.append(DC)
+        SYM_all.append(SYM)
+        DC_even.append(np.real(DC))
+        SYM_even.append(np.real(SYM))
+        DC_odd.append(np.imag(DC))
+        SYM_odd.append(np.imag(SYM))
+    return np.asarray(DC_all), np.asarray(SYM_all)
 
-def fit(array):
-    pass
+def cross_correlate(array, test_function = 'odd'):
+    if test_function == 'odd':
+        test = np.linspace(-1,1, array.shape[1])
+    corr = []
+    for i in range(array.shape[1]):
+        corr.append(np.correlate(array, test))
+    data_min = argrelextrema(np.asarray(corr), np.less)
+    return data_min
+
+def plot_DC_and_SYM(DC_all, SYM_all):
+    plt.figure(figsize=(10,10))
+    
+    plt.subplot(321)
+    plt.plot(np.abs(DC_all))
+    plt.title('Absolute value of DC freq')
+    plt.subplot(322)
+    plt.plot(np.abs(SYM_all))
+    plt.title('Absolute value of SYM freq')
+    
+    plt.subplot(323)
+    plt.title('Even spectrum of DC freqency')
+    plt.plot(np.real(DC_all))
+    plt.subplot(324)
+    plt.title('Odd sepctrum of DC frequency')
+    plt.plot(np.imag(DC_all))
+    
+    plt.subplot(325)
+    plt.title('Even spectrum of SYM frequency')
+    plt.plot(np.real(SYM_all))
+    plt.subplot(326)
+    plt.title('Odd spectrum of SYM frequency')
+    plt.plot(np.imag(SYM_all))
+
+    plt.show()
+
+    
+def SYM_odd_root_poly(SYM_odd, scan_area, degree):
+    # fit data to polynomial
+    x = len(SYM_odd)
+    N = np.arange(x)
+    Ep = np.polyfit(N,SYM_odd,15)
+    fitted = np.poly1d(Ep)
+    root = np.real([a for a in np.roots(fitted.coef) if np.imag(a) == 0 and 0.<=np.real(a)<=x])[::-1]
+    return root+scan_area/2
+
+def SYM_odd_data_min(SYM_odd, scan_area):
+    # find the minimum (zero) of data set (not polynomial)
+    data_min = argrelextrema(abs(np.asarray(SYM_odd)), np.less)[0]
+    return data_min+scan_area/2
