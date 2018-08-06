@@ -99,10 +99,10 @@ def SYM_odd_root_poly(SYM_odd, scan_area, degree):
     # fit data to polynomial
     x = len(SYM_odd)
     N = np.arange(x)
-    Ep = np.polyfit(N,SYM_odd,15)
+    Ep = np.polyfit(N,SYM_odd,degree)
     fitted = np.poly1d(Ep)
     root = np.real([a for a in np.roots(fitted.coef) if np.imag(a) == 0 and 0.<=np.real(a)<=x])[::-1]
-    return root+scan_area/2
+    return root+scan_area/2, fitted
 
 def SYM_odd_data_min(SYM_odd, scan_area):
     # find the minimum (zero) of data set (not polynomial)
