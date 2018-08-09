@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 import scipy
-from scipy.signal import argrelextrema
+from scipy.signal import argrelextrema, cwt, ricker
 from scipy.optimize import root, leastsq
 
 import sys
@@ -38,18 +38,24 @@ def DC_and_SYM(array):
     SYM = array_fft[1]
     return DC, SYM
 
-def shift(array, scan_area):
+def shift(array, scan_area, plot = None, shifting_range = 'Full'):
+    # if plot = # then on plot per # shifts will be printed
     DC_even = []
     SYM_even= []
     DC_odd = []
     SYM_odd = []
     DC_all = []
     SYM_all = []
-    shifting_range = array.shape[0]-scan_area
+    SYM_min = []
+    if shifting_range == 'Full':
+        shifting_range = array.shape[0]-scan_area
+    else:
+        shifting_range = shifting_range
     
     for i in range(shifting_range):
         window = array[i:i+scan_area,:]
         rowsum = np.sum(window, axis = 1, dtype=np.float64)
+        ## Collect spectrum data
         DC, SYM = DC_and_SYM(rowsum)
         DC_all.append(DC)
         SYM_all.append(SYM)
@@ -57,6 +63,31 @@ def shift(array, scan_area):
         SYM_even.append(np.real(SYM))
         DC_odd.append(np.imag(DC))
         SYM_odd.append(np.imag(SYM))
+        ## produce spectrum
+        DC_spec = np.zeros(rowsum.shape, dtype = 'complex')
+        SYM_spec = np.zeros(rowsum.shape, dtype = 'complex')
+        DC_spec[0] += DC
+        SYM_spec[1] += SYM
+        iDC_spec = np.fft.ifft(DC_spec)
+        iSYM_spec = np.fft.ifft(SYM_spec)
+        iSYM_even = np.fft.ifft(np.real(SYM_spec))
+        iSYM_odd = np.fft.ifft(np.imag(SYM_spec)*1j)
+        SYM_min.append(argrelextrema(iSYM_spec, np.less)[0][0] + i)
+        if plot != None and i % plot == 0:
+            plt.figure(figsize=(10,5))
+            plt.subplot(121)
+            plt.imshow(array[i:i+scan_area,:])
+            plt.subplot(122)
+            plt.plot((rowsum-np.min(rowsum))/np.max(rowsum-np.min(rowsum))**.5, label = 'rowsum')
+            plt.plot((iSYM_spec-np.min(iSYM_spec))/np.max(iSYM_spec-np.min(iSYM_spec))**.5, label = 'SYM')
+            plt.plot((iSYM_even-np.min(iSYM_even))/np.max(iSYM_even-np.min(iSYM_even))**.5, label = 'SYM_even')
+            plt.plot((iSYM_odd-np.min(iSYM_odd))/np.max(iSYM_odd-np.min(iSYM_odd))**.5, label = 'SYM_odd')
+            plt.title('Window Center = '+ str(i+scan_area//2)+ ', SYM center = '+ str(argrelextrema(iSYM_spec, np.less)[0][0] + i))
+            plt.legend()
+            plt.show()
+    plt.plot(np.asarray(SYM_min))
+    plt.title(scipy.stats.mode(SYM_min))
+    plt.show()
     return np.asarray(DC_all), np.asarray(SYM_all)
 
 def cross_correlate(array, test_function = 'odd'):
@@ -108,3 +139,26 @@ def SYM_odd_data_min(SYM_odd, scan_area):
     # find the minimum (zero) of data set (not polynomial)
     data_min = argrelextrema(abs(np.asarray(SYM_odd)), np.less)[0]
     return data_min+scan_area/2
+
+def fit_to_cos(array):
+    N = len(array)
+    data = array
+    t = np.linspace(0, 4*np.pi, N)
+    guess_mean = np.mean(data)
+    guess_std = 3*np.std(data)/(2**0.5)/(2**0.5)
+    guess_phase = 0
+    guess_freq = 1
+    guess_amp = np.max(data)-np.abs(np.min(data))
+
+    # we'll use this to plot our first estimate. This might already be good enough for you
+    data_first_guess = guess_std*np.sin(t+guess_phase) + guess_mean
+
+    # Define the function to optimize, in this case, we want to minimize the difference
+    # between the actual data and our "guessed" parameters
+    optimize_func = lambda x: x[0]*np.sin(x[1]*t+x[2]) + x[3] - data
+    est_amp, est_freq, est_phase, est_mean = leastsq(optimize_func, [guess_amp, guess_freq, guess_phase, guess_mean])[0]
+    
+    # recreate the fitted curve using the optimized parameters
+    data_fit = est_amp*np.sin(est_freq*t+est_phase) + est_mean
+    
+    return data_fit
