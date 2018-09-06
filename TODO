@@ -9,9 +9,14 @@
 ## Noise:
 * Find noise limit for combined images.
 * See if noise in higher components of the FFT correlates to maximum reconstruciton resolution.
+*1 See if using multiple odd components increases resiliance to noise
+
+## Fourier Analysis:
+*1 See if using multiple odd components increases resiliance to noise
 
 # Future:
-* Try to align individual slices of sinogram.
+* Individual slice alignment
+* Worble detection
 
 
 # Completed:

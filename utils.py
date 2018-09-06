@@ -34,8 +34,10 @@ def add_noise(array, exposure = None, bit_depth = None):
 def DC_and_SYM(array):
     #input is 1d array. output is the even and odd parts of the DC and SYM spectrum
     array_fft = np.fft.fft(array)
-    DC = array_fft[0]
-    SYM = array_fft[1]
+    DC = array_fft[3]
+    SYM = 0
+    for i in range(1):
+        SYM += array_fft[2*i+1]
     return DC, SYM
 
 def shift(array, scan_area, plot = None, shifting_range = 'Full'):
@@ -66,28 +68,49 @@ def shift(array, scan_area, plot = None, shifting_range = 'Full'):
         ## produce spectrum
         DC_spec = np.zeros(rowsum.shape, dtype = 'complex')
         SYM_spec = np.zeros(rowsum.shape, dtype = 'complex')
-        DC_spec[0] += DC
-        SYM_spec[1] += SYM
+        DC_spec[1] += DC
+        SYM_spec[1] += SYM #+ DC
+        #SYM_spec[rowsum.shape[0]-1] += SYM
         iDC_spec = np.fft.ifft(DC_spec)
         iSYM_spec = np.fft.ifft(SYM_spec)
         iSYM_even = np.fft.ifft(np.real(SYM_spec))
-        iSYM_odd = np.fft.ifft(np.imag(SYM_spec)*1j)
-        SYM_min.append(argrelextrema(iSYM_spec, np.less)[0][0] + i)
-        if plot != None and i % plot == 0:
-            plt.figure(figsize=(10,5))
+        iSYM_odd = np.fft.ifft(np.imag(SYM_spec)*1j) #+ np.real(np.fft.ifft(np.imag(SYM_spec)*1j))
+        iDC_odd = np.fft.ifft(np.imag(DC_spec)*1j)
+        #SYM_min.append(np.trapz(np.abs(iSYM_odd)))
+        try:
+            SYM_min.append(argrelextrema(iSYM_spec, np.less)[0][0] + i)
+        except:
+            pass
+        if plot != None and len(plot) > 1 and i in plot:
+            plt.figure(figsize=(12,5))
             plt.subplot(121)
             plt.imshow(array[i:i+scan_area,:])
             plt.subplot(122)
             plt.plot((rowsum-np.min(rowsum))/np.max(rowsum-np.min(rowsum))**.5, label = 'rowsum')
-            plt.plot((iSYM_spec-np.min(iSYM_spec))/np.max(iSYM_spec-np.min(iSYM_spec))**.5, label = 'SYM')
-            plt.plot((iSYM_even-np.min(iSYM_even))/np.max(iSYM_even-np.min(iSYM_even))**.5, label = 'SYM_even')
-            plt.plot((iSYM_odd-np.min(iSYM_odd))/np.max(iSYM_odd-np.min(iSYM_odd))**.5, label = 'SYM_odd')
-            plt.title('Window Center = '+ str(i+scan_area//2)+ ', SYM center = '+ str(argrelextrema(iSYM_spec, np.less)[0][0] + i))
+            plt.plot((iSYM_spec-np.min(iSYM_spec))/np.max(iSYM_spec-np.min(iSYM_spec))**.5, label = 'iSYM')
+            plt.plot((iSYM_even-np.min(iSYM_even))/np.max(iSYM_even-np.min(iSYM_even))**.5, label = 'iSYM_even')
+            plt.plot((iSYM_odd-np.min(iSYM_odd))/np.max(iSYM_odd-np.min(iSYM_odd))**.5, label = 'iSYM_odd')
+            plt.title('Window Center = '+ str(i+scan_area//2))#+ ', SYM center = '+ str(argrelextrema(iSYM_spec, np.less)[0][0] + i) + '    '+ str(i))
             plt.legend()
             plt.show()
+        
+        elif plot != None and len(plot)==1 and i % plot[0] == 0:
+            plt.figure(figsize=(12,5))
+            plt.subplot(121)
+            plt.imshow(array[i:i+scan_area,:])
+            plt.subplot(122)
+            plt.plot((rowsum-np.min(rowsum))/np.max(rowsum-np.min(rowsum))**.5, label = 'rowsum')
+            plt.plot((iSYM_spec-np.min(iSYM_spec))/np.max(iSYM_spec-np.min(iSYM_spec))**.5, label = 'iSYM')
+            plt.plot((iSYM_even-np.min(iSYM_even))/np.max(iSYM_even-np.min(iSYM_even))**.5, label = 'iSYM_even')
+            plt.plot((iSYM_odd-np.min(iSYM_odd))/np.max(iSYM_odd-np.min(iSYM_odd))**.5, label = 'iSYM_odd')
+            plt.title('Window Center = '+ str(i+scan_area//2))#+ ', SYM center = '+ str(argrelextrema(iSYM_spec, np.less)[0][0] + i) + '    '+ str(i))
+            plt.legend()
+            plt.show()
+        
     plt.plot(np.asarray(SYM_min))
-    plt.title(scipy.stats.mode(SYM_min))
+    plt.title('Mode of the minimum of Even component = ' + str(scipy.stats.mode(SYM_min)[0][0]))
     plt.show()
+    
     return np.asarray(DC_all), np.asarray(SYM_all)
 
 def cross_correlate(array, test_function = 'odd'):
