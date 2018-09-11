@@ -1,19 +1,58 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-import scipy
-from scipy.signal import argrelextrema, cwt, ricker
 from scipy.optimize import root, leastsq
 from scipy.interpolate import UnivariateSpline
 
-from skimage import dtype_limits
-from skimage.measure import compare_psnr, shannon_entropy
+#from skimage import dtype_limits
+from skimage.measure import shannon_entropy
 from skimage.util import img_as_uint, img_as_ubyte
 
-import sys
 import h5py
 
 import warnings
+
+import math
+def goertzel(samples, *freqs):
+    """
+    Adapted from author: Sebastien Piquemal https://github.com/sebpiq
+    Implementation of the Goertzel algorithm, useful for calculating individual
+    terms of a discrete Fourier transform.
+    """
+    window_size = len(samples)
+    f_step = 1
+    f_step_normalized = 1.0 / window_size
+
+    # Calculate all the DFT bins we have to compute to include frequencies
+    # in `freqs`.
+    bins = set()
+    for f_range in freqs:
+        f_start, f_end = 1, 2
+        k_start = f_start // f_step
+        k_end = int(math.ceil(f_end / f_step))
+
+        if k_end > window_size - 1: raise ValueError('frequency out of range %s' % k_end)
+        bins = bins.union(range(k_start, k_end))
+
+    # For all the bins, calculate the DFT term
+    n_range = range(0, window_size)
+    results = []
+    for k in bins:
+
+        # Bin frequency and coefficients for the computation
+        f = k * f_step_normalized
+        w_real = 2.0 * math.cos(2.0 * math.pi * f)
+        w_imag = math.sin(2.0 * math.pi * f)
+
+        # Doing the calculation on the whole sample
+        d1, d2 = 0.0, 0.0
+        for n in n_range:
+            y  = samples[n] + w_real * d1 - d2
+            d2, d1 = d1, y
+
+        # Storing results `(real part, imag part, power)`
+        results.append(w_imag * d1)
+    return results
 
 def print_attrs(name, obj):
     print(name)
@@ -62,49 +101,41 @@ def add_noise2(array, exposure = None, bit_depth = None):
         snr = shannon_entropy(noise)
     else:
         noise = np.clip(np.random.poisson(array/np.max(array)*exposure), 0, clip)
-        snr = shannon_entropy(noise) #compare_psnr(array/np.max(array)*exposure, noise)
+        snr = shannon_entropy(noise)
     return noise, snr
-
+'''
 def contrast_ratio(array):
     ## Returns the ration of the difference of the highest and lowest pixel value
     ## to the highest and lowest possible pixel value for a given dtype
     dlimits = dtype_limits(array, clip_negative=False)
     limits = np.percentile(array, [1, 99])
     return (limits[1] - limits[0]) / (dlimits[1] - dlimits[0])
-
+'''
 def fourier_bin(array, fbins):
     ## Transforms 1D array and returns requested bins.
     ## array: 1D
     ## fbins: 1D array of bin requests (0:len(array))
-    array_fft = np.fft.fft(array)
+    array_fft = np.fft.rfft(array)
     bins = []
-    bins2 = []
-    length = len(array)
-    
-    for i in fbins:
-        bin_value = 0
-        for j in range(length):
-            bin_value += np.exp(-1j*2*np.pi*i*j/length)*array[j]
-        bins2.append(bin_value)
-    
+    length = len(array)    
     for i in fbins:
         bins.append(array_fft[i])
-    #print(np.imag(bins[0])-np.imag(bins2[0]))
-    return bins2
+    return bins
 
 def window_bins(array, window_width, start_index, orientation = 'xt', fbins = 'all'):
     ## windows a sinogram and returns fourier bins
     ## orientation refers to which axis contains the x axis or the theta axis
     ## set bins to 1d array of desired bins.
-    if orientation == 'tx':
-        array = np.transpose(array)
-    window = array[start_index:start_index+window_width, :]
-    rowsum = np.sum(window, axis = 1, dtype=np.float64)
+    #if orientation == 'tx':
+    #    array = np.transpose(array)
+    window = array[start_index:start_index+window_width]
+    #rowsum = np.sum(window, axis = 1, dtype=np.float64)
     
-    if fbins == 'all':
-        bins = fourier_bin(rowsum, np.arange(len(rowsum)))
-    else:
-        bins = fourier_bin(rowsum, fbins)
+    #if fbins == 'all':
+    #    bins = fourier_bin(rowsum, np.arange(len(rowsum)))
+    
+    #bins = goertzel(window, (1,2))
+    bins = fourier_bin(window, fbins)
         
     return bins
 
