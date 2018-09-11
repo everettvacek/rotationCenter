@@ -78,9 +78,19 @@ def fourier_bin(array, fbins):
     ## fbins: 1D array of bin requests (0:len(array))
     array_fft = np.fft.fft(array)
     bins = []
+    bins2 = []
+    length = len(array)
+    
+    for i in fbins:
+        bin_value = 0
+        for j in range(length):
+            bin_value += np.exp(-1j*2*np.pi*i*j/length)*array[j]
+        bins2.append(bin_value)
+    
     for i in fbins:
         bins.append(array_fft[i])
-    return bins
+    #print(np.imag(bins[0])-np.imag(bins2[0]))
+    return bins2
 
 def window_bins(array, window_width, start_index, orientation = 'xt', fbins = 'all'):
     ## windows a sinogram and returns fourier bins
